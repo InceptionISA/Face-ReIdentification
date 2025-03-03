@@ -74,11 +74,23 @@ for img_path in tqdm(test_files, desc="Processing test files"):
 
 # Create submission DataFrame
 submission_df = pd.DataFrame(results)
+submission_df['frame'] = -1
+
+submission_df['objects'] = submission_df.apply(lambda row: {
+                             'gt': row['gt'], 'image': 'test_set/{}'.format(row['image'].split('/')[-1])}, axis=1)
+submission_df['objective'] = 'face_reid'
+submission_df.drop(columns=['gt', 'image'], inplace=True)
+
 print(submission_df.head())
 
 os.makedirs('outputs', exist_ok=True)
 
-# Save submission to CSV
-submission_path = 'outputs/submission.csv'
+# Determine the next available index for the submission file
+index = 0
+while os.path.exists(f'outputs/submission{index}.csv'):
+    index += 1
+
+# Save submission to CSV with incremented index
+submission_path = f'outputs/submission{index}.csv'
 submission_df.to_csv(submission_path, index=False)
 print(f"Submission saved to {submission_path}")
