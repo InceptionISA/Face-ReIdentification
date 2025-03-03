@@ -7,7 +7,12 @@ from deepface import DeepFace
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Configuration
-MODELS = ['Facenet', 'Facenet512', 'VGG-Face', 'Dlib']
+MODELS = [
+        # 'Facenet',
+        'Facenet512',
+        #    'VGG-Face', 'Dlib'
+        ]
+
 BACKEND = 'retinaface'
 USE_ALIGNMENT = True
 SIMILARITY_THRESHOLD = 0.3
