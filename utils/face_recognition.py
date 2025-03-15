@@ -29,7 +29,7 @@ Future Improvements:
 - add support for multiple distance metrics and similarity thresholds.
 - visualize the embeddings using dimensionality reduction techniques.
 - data augmentation and fine-tuning for improved embeddings.
-- normalization re looking at.
+
 - add feature for single embedding ( using Vector DB) and classify using most 3 similar embeddings.
 """
 
