@@ -1,50 +1,15 @@
+        
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
 import random
+import faiss
 from tqdm import tqdm
 from deepface import DeepFace
-from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 from utils import create_submission, generate_statistics, plot_class_distribution, plot_confusion_matrix, organize_by_predictions
 from sklearn.manifold import TSNE
-
-"""
-workspace  structure: 
-tree
-(base) PS E:\99\Competitions\Fawry\Face-ReIdentification> tree
-E:.
-├───dataset
-│   └───surveillance-for-retail-stores
-│       └───face_identification
-│           └───face_identification
-│               ├───test
-│               │   ├───image1.jpg
-│               │   ├───image2.jpg
-│               │   ├───...
-│               └───train
-│                   ├───person_0
-                        ├───image1.jpg
-                        ├───image2.jpg
-                        ├───...
-│                   ├───person_1
-│                   ├───...
-│                   └───person_125
-├───embeddings
-│   └───Facenet512
-│       ├───test_embeddings.npz
-│       └───train_embeddings.npz
-├───testing
-│   ├───image1.jpg
-│   ├───image2.jpg
-│   ├───...
-└───utils
-    ├───face_reidentification.py
-
-
-
-"""
 
 
 class FaceRecognition:
@@ -70,10 +35,13 @@ class FaceRecognition:
         np.random.seed(self.config['random_seed'])
 
         self.train_embeddings = {}
+        self.faiss_index = None
+        self.person_ids = []
         self.test_embeddings = {}
         self.predictions = []
         self.class_counts = defaultdict(int)
         self.class_confidences = defaultdict(list)
+        self.embedding_dim = 512  # Default for Facenet512
 
     def get_embedding(self, image_path):
         try:
@@ -95,17 +63,35 @@ class FaceRecognition:
         model_name = self.config['model_name']
         embeddings_path = os.path.join(
             self.config['embeddings_dir'], model_name, f"{name}.npz")
+        index_path = os.path.join(
+            self.config['embeddings_dir'], model_name, f"{name}_faiss.index")
+        person_ids_path = os.path.join(
+            self.config['embeddings_dir'], model_name, f"{name}_person_ids.npy")
 
-        if not os.path.exists(embeddings_path):
+        if not os.path.exists(embeddings_path) or not os.path.exists(index_path):
             print(
                 f"No saved embeddings found for {model_name} at {embeddings_path}")
             return {}
 
         try:
+            # Load the original embeddings dictionary
             data = np.load(embeddings_path, allow_pickle=True)
             embeddings = data['embeddings'].item()
+
+            # Load the FAISS index
+            self.faiss_index = faiss.read_index(index_path)
+
+            # Load the person_ids list
+            self.person_ids = np.load(
+                person_ids_path, allow_pickle=True).tolist()
+
             print(
                 f"Loaded {len(embeddings)} embeddings for {model_name} from {name}")
+            print(f"Loaded FAISS index with {self.faiss_index.ntotal} vectors")
+
+            if name == "train_embeddings":
+                self.train_embeddings = embeddings
+
             return embeddings
         except Exception as e:
             print(f"Error loading embeddings for {model_name}: {e}")
@@ -117,8 +103,37 @@ class FaceRecognition:
         os.makedirs(model_dir, exist_ok=True)
 
         save_path = os.path.join(model_dir, f"{name}.npz")
+        index_path = os.path.join(model_dir, f"{name}_faiss.index")
+        person_ids_path = os.path.join(model_dir, f"{name}_person_ids.npy")
+
+        # Save the original embeddings dictionary
         np.savez_compressed(save_path, embeddings=embeddings)
+
+        # If this is for training data, create and save the FAISS index
+        if name == "train_embeddings":
+            persons = list(embeddings.keys())
+            embeddings_matrix = np.vstack([embeddings[p] for p in persons])
+
+            # Get dimension from the first embedding
+            self.embedding_dim = embeddings_matrix.shape[1]
+
+            # Create and train a FAISS index for these embeddings
+            # Using InnerProduct since we have normalized vectors
+            self.faiss_index = faiss.IndexFlatIP(self.embedding_dim)
+            self.faiss_index.add(embeddings_matrix.astype('float32'))
+
+            # Save the FAISS index
+            faiss.write_index(self.faiss_index, index_path)
+
+            # Save the person IDs in the same order as they were added to the index
+            self.person_ids = persons
+            np.save(person_ids_path, persons)
+
         print(f"Saved {len(embeddings)} embeddings to {save_path}")
+        if name == "train_embeddings":
+            print(
+                f"Saved FAISS index with {self.faiss_index.ntotal} vectors to {index_path}")
+
         return save_path
 
     def load_test_embeddings(self):
@@ -149,7 +164,8 @@ class FaceRecognition:
 
             if all_embeddings:
                 mean_embedding = np.mean(all_embeddings, axis=0)
-                mean_embedding = mean_embedding / np.linalg.norm(mean_embedding)
+                mean_embedding = mean_embedding / \
+                    np.linalg.norm(mean_embedding)
                 person_embeddings[person_dir] = mean_embedding
 
         print(f"Generated embeddings for {len(person_embeddings)} persons")
@@ -160,21 +176,32 @@ class FaceRecognition:
     def predict(self, test_emb, top_n=1, threshold=None):
         threshold = threshold if threshold is not None else self.config['similarity_threshold']
 
-        if not self.train_embeddings:
+        if not self.faiss_index or self.faiss_index.ntotal == 0:
             return [("doesn't_exist", 0.0)] if top_n > 1 else ("doesn't_exist", 0.0)
 
-        persons = list(self.train_embeddings.keys())
-        embeddings = np.vstack(
-            [self.train_embeddings[p].reshape(1, -1) for p in persons])
-        sims = cosine_similarity(test_emb.reshape(1, -1), embeddings)[0]
+        # Make sure the test embedding is a properly formatted numpy array
+        query_embedding = test_emb.reshape(1, -1).astype('float32')
 
-        if len(sims) == 0:
-            return [("doesn't_exist", 0.0)] if top_n > 1 else ("doesn't_exist", 0.0)
+        # Search the FAISS index
+        distances, indices = self.faiss_index.search(query_embedding, top_n)
 
-        top_indices = np.argsort(sims)[::-1][:top_n]
-        top_matches = [(persons[idx], sims[idx]) for idx in top_indices]
+        # FAISS with IndexFlatIP returns similarities (higher is better since we use inner product)
+        # but to maintain compatibility with the original code, we ensure these are treated as similarities
+        similarities = distances[0]  # Get the first query's results
+        indices = indices[0]  # Get the first query's results
+
+        # Convert the index results back to person IDs
+        top_matches = []
+        for i, sim in zip(indices, similarities):
+            if i < len(self.person_ids):
+                person_id = self.person_ids[i]
+                top_matches.append((person_id, float(sim)))
+            else:
+                top_matches.append(("doesn't_exist", 0.0))
 
         if top_n == 1:
+            if not top_matches:
+                return ("doesn't_exist", 0.0)
             pred_person, max_sim = top_matches[0]
             return (pred_person if max_sim >= threshold else "doesn't_exist"), max_sim
 
@@ -213,8 +240,8 @@ class FaceRecognition:
     def generate_predictions(self, threshold=None):
         threshold = threshold if threshold is not None else self.config['similarity_threshold']
 
-        if not self.train_embeddings:
-            print("No training embeddings loaded. Call load_embeddings() first.")
+        if not self.faiss_index or self.faiss_index.ntotal == 0:
+            print("No FAISS index available. Call load_embeddings() first.")
             return []
 
         if not self.test_embeddings:
@@ -249,11 +276,11 @@ class FaceRecognition:
             print(f"Directory {test_dir} does not exist")
             return None
 
-        if not self.train_embeddings:
+        if not self.faiss_index or self.faiss_index.ntotal == 0:
             self.load_embeddings()
 
-        if not self.train_embeddings:
-            print("No training embeddings available. Cannot proceed with testing.")
+        if not self.faiss_index or self.faiss_index.ntotal == 0:
+            print("No FAISS index available. Cannot proceed with testing.")
             return None
 
         results = {}
@@ -333,7 +360,7 @@ class FaceRecognition:
             plt.ylabel('t-SNE 2')
 
             output_path = os.path.join(
-                self.config['metrics_dir'], 'embedding_tsne.png')
+                    self.config['metrics_dir'], 'embedding_tsne.png')
             plt.savefig(output_path, bbox_inches='tight', dpi=300)
             plt.close()
             print(f"Saved visualization to {output_path}")
@@ -349,7 +376,7 @@ class FaceRecognition:
             f"Using similarity threshold: {self.config['similarity_threshold']}")
 
         self.train_embeddings = self.load_embeddings()
-        if not self.train_embeddings:
+        if not self.train_embeddings or not self.faiss_index or self.faiss_index.ntotal == 0:
             self.process_train_directory(train_dir)
 
         self.test_embeddings = self.load_test_embeddings()

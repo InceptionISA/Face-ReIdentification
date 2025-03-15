@@ -60,7 +60,7 @@ def generate_statistics(predictions, class_counts, class_confidences, config):
         print(f"Most common class: {most_common}")
 
 
-    print(f"Number of \"doesn't_exist\" predictions: {class_counts.get("doesn't_exist", 0)}")
+    print(f"Number of doesnt_exist predictions:",{class_counts.get("doesn't_exist", 0)})
 
     # Create detailed class statistics dataframe
     class_stats = [
