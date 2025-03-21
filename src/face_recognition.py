@@ -149,7 +149,8 @@ class FaceRecognition:
 
             if all_embeddings:
                 mean_embedding = np.mean(all_embeddings, axis=0)
-                mean_embedding = mean_embedding / np.linalg.norm(mean_embedding)
+                mean_embedding = mean_embedding / \
+                    np.linalg.norm(mean_embedding)
                 person_embeddings[person_dir] = mean_embedding
 
         print(f"Generated embeddings for {len(person_embeddings)} persons")
@@ -353,6 +354,17 @@ class FaceRecognition:
         submission_path = self.create_submission()
         self.generate_statistics()
         self.plot_class_distribution()
-        self.visualize_embeddings()
+        # self.visualize_embeddings()
 
         return submission_path
+
+
+if __name__ == "__main__":
+    config = {
+        'model_name': 'Facenet512',
+        'backend': 'mtcnn',
+        'similarity_threshold': 0.67,
+    }
+    face_recognition = FaceRecognition(config)
+    submission_path = face_recognition.run_pipeline()
+    print(f"Pipeline completed. Submission saved to: {submission_path}")
