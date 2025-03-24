@@ -99,13 +99,8 @@ def plot_class_distribution(class_counts, class_confidences, config):
     classes = [item[0] for item in sorted_items]
     counts = [item[1] for item in sorted_items]
 
-    # Limit to top 30 classes for readability
-    if len(classes) > 30:
-        classes = classes[:30]
-        counts = counts[:30]
-        plt.title('Top 30 Predicted Classes Distribution')
-    else:
-        plt.title('Predicted Classes Distribution')
+    plt.title('Predicted Classes Distribution')
+
 
     # Create bar chart
     bars = plt.bar(classes, counts, color='skyblue')

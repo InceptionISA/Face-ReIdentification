@@ -47,13 +47,13 @@ def download_kernels_outputs():
     api = authenticate()
 
     kernels = [
-        "sayedgamal99/advanced-face-module-facenet512",
-        "sayedgamal99/advanced-face-module-arcface"
+        "ahmedelsharkaw/face-recog-voting-5",
+        # "sayedgamal99/advanced-face-module-arcface"
     ]
 
     output_dirs = [
-        "notebooks_outputs/facenet",
-        "notebooks_outputs/arcface"
+        "notebooks_outputs/facenet512_voting5",
+        # "notebooks_outputs/arcface"
     ]
 
     for kernel, output_dir in zip(kernels, output_dirs):
