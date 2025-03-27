@@ -1,3 +1,3 @@
 
-from .project import ProjectSchema
+from .project import ProjectSchema 
 from .person import PersonSchema ,RetrievedFace

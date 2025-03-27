@@ -5,7 +5,7 @@ import numpy as np
 import os
 import json
 from fastapi import Request, UploadFile, File, HTTPException
-
+from models.db_schemas import ProjectSchema 
 
 
 
@@ -16,16 +16,14 @@ class FaceEmbeddingService(BaseController):
         self.face_detector = face_detector
         self.feature_extractor = feature_extractor
 
-    def detect_faces(self, image_path: str) -> List[np.ndarray]:
-        pass
 
     def get_embedding(self, image_path: str) -> Optional[List[float]]:
+
+        # dummy implementation return 512 random floats
+        return list(np.random.rand(512))
+    
+
         pass    
-
-
-    def compare_embeddings(self, embedding1: List[float], embedding2: List[float]) -> float:
-        pass
-
 
 
 
@@ -51,15 +49,22 @@ class FaceRecognitionController(BaseController):
         
         return list(np.mean(embeddings, axis=0))
 
+    def create_collection_name(self , project_id):
+        return f"collection_{project_id}".strip()
 
+    def get_vector_db_collection_info(self, project: ProjectSchema):
+        collection_name = self.create_collection_name(project_id=project.project_id)
+        collection_info = self.vector_db.get_collection_info(collection_name=collection_name)
 
+        return json.loads(
+            json.dumps(collection_info, default=lambda x: x.__dict__)
+        )
 
     async def process_person(self, project_id: str, person_id: str, image_paths: List[str]) -> bool:
 
 
         # Create collection if not exists
         collection_name = f"collection_{project_id}"
-        
         
         # Ensure collection exists
         if not self.vector_db.is_collection_existed(collection_name):
@@ -72,7 +77,6 @@ class FaceRecognitionController(BaseController):
         # Get average embedding
 
         embedding = self._get_average_embedding(image_paths)
-
         
         if embedding is None:
             print(f"No valid embeddings found for person {person_id}")

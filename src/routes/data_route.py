@@ -7,9 +7,7 @@ from helpers.config import get_settings, Settings
 from .schemas.data_schema import ProcessRequest
 from models.ProjectModel import ProjectModel 
 from models.PersonModel import PersonModel
-from controllers.FaceRecognitionController import FaceRecognitionController , FaceEmbeddingService 
 from controllers import DataController
-# from controllers import ProcessController
 import logging
 
 

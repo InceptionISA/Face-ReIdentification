@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, File, UploadFile, status, Request
+from fastapi import APIRouter, Depends, File, UploadFile, status, Request 
 from fastapi.responses import JSONResponse
 from helpers.config import get_settings, Settings
-from .schemas.data_schema import ProcessRequest
+from models import ResponseMessage 
+
 from models.ProjectModel import ProjectModel 
 from models.PersonModel import PersonModel
 from controllers.FaceRecognitionController import FaceRecognitionController, FaceEmbeddingService
@@ -25,8 +26,7 @@ async def generate_person_embeddings(
     request: Request,
     project_id: str,
     person_id: str,
-    app_settings: Settings = Depends(get_settings)
-
+    
 ):
     try:
         db = request.app.database
@@ -36,7 +36,7 @@ async def generate_person_embeddings(
 
         if not project:
             return JSONResponse(
-                {"error": "Project not found"},
+                {"message": ResponseMessage.PROJECTNOTFOUND.value},
                 status_code=404
             )
         
@@ -46,10 +46,9 @@ async def generate_person_embeddings(
         
         if not person:
             return JSONResponse(
-                {"error": "Person not found"},
+                {"message": ResponseMessage.PERSONNOTEXIST.value},
                 status_code=404
-            )    
-        
+            )
 
 
         # controller
@@ -65,20 +64,18 @@ async def generate_person_embeddings(
 
         result = await face_controller.process_person(project_id, person_id , person_images)
 
-        
-
         if not result:
             return JSONResponse(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 content={
-                    "message": result.get("error", "Processing failed"),
+                    "message": ResponseMessage.FACEPROCESSINGFAILED.value,
                     "person_id": person_id
                 }
             )
 
         # Update person status in DB
         await person_model.update_embedding_status(
-            project_id=project_id,
+            project_id=project.id,
             person_id=person_id,
             has_embeddings=True
         )
@@ -88,9 +85,7 @@ async def generate_person_embeddings(
             content={
                 "person_id": person_id,
                 "project_id": project_id,
-                "embedding_size": len(result["embedding"]) if result["embedding"] else 0,
-                "processed_images": result["processed_images"],
-                "collection": face_controller.db.create_collection_name(project_id),
+                "collection": face_controller.vector_db.create_collection_name(project_id),
                 "message": "Face processing completed"
             }
         )
@@ -100,11 +95,41 @@ async def generate_person_embeddings(
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
-                "message": "Internal processing error",
+                "message": ResponseMessage.INTERNALSERVERERROR.value,
                 "error": str(e),
                 "person_id": person_id
             }
         )
+    
+
+# get the vectordb info
+@face_router.get("/vectordb/{project_id}")
+async def get_vectordb_info(request: Request, project_id:str):
+    
+    project_model =await ProjectModel.create_instance(db_client=request.app.database)
+
+    project = await project_model.get_project(project_id=project_id)
+
+    if not project:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "message": ResponseMessage.PROJECTNOTFOUND.value
+            }
+        )
+
+
+    face_controller = FaceRecognitionController(embedding_service=None, vector_db=request.app.vectordb_client)
+
+    collection_info = face_controller.get_vector_db_collection_info(project=project)
+
+    return JSONResponse(status_code=status.HTTP_200_OK, 
+                        content={
+                                "message": ResponseMessage.VECTORDB_COLLECTION_RETRIEVED.value ,
+                                "collection_info": collection_info
+                                })
+    
+
 
 
 
@@ -124,7 +149,7 @@ async def generate_person_embeddings(
 
 # Batch Processing
 @face_router.post("/embeddings/batch/{project_id}")
-async def generate_project_embeddings(request: Request, project_id: str, process_request: ProcessRequest):
+async def generate_project_embeddings(request: Request, project_id: str):
     
     # get all persons in the project
     # for each person get the images paths

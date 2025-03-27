@@ -75,9 +75,11 @@ class PersonModel(BaseDataModel):
 
     async def update_embedding_status(self, project_id: str, person_id: str, has_embeddings: bool):
         """Update person's embedding status."""
+
+
         return await self.collection.update_one(
             {"project_id": str(project_id), "person_id": person_id},
-            {"$set": {"has_embeddings": has_embeddings}}
+            {"$set": {"has_embedding": has_embeddings}}
         )
     
     async def get_images(self, project_id: str, person_id: str):

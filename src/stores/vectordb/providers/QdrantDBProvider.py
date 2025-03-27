@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional
 import logging
+import uuid
 
 from qdrant_client import QdrantClient, models
 from qdrant_client.http import exceptions as qdrant_exceptions
@@ -26,6 +27,12 @@ class QdrantDBProvider(VectorDBInterface):
         }
         return distance_map.get(distance_method, models.Distance.COSINE)
 
+    def get_collection_info(self, collection_name: str):
+        return self.client.get_collection(collection_name=collection_name)
+
+
+        return self.client.get_collection_info()
+    
     def connect(self) -> None:
         try:
             self.client = QdrantClient(path=self.db_path)
@@ -98,22 +105,26 @@ class QdrantDBProvider(VectorDBInterface):
         :param vector: Embedding vector
         :return: True if insertion successful, False otherwise
         """
+
         if not self._validate_collection(collection_name):
             self.logger.error(f"Collection {collection_name} does not exist")
             return False
+        
 
         try:
+
             self.client.upsert(
                 collection_name=collection_name,
                 points=[
                     models.PointStruct(
-                        id=person_id,
+                        id=str(uuid.uuid4()),  # Generate a valid UUID
                         vector=vector,
-                        payload={"person_id": person_id}
+                        payload={"person_id": str(person_id)}
                     )
                 ]
             )
             return True
+
         except qdrant_exceptions.QdrantException as e:
             self.logger.error(f"Error inserting record: {e}")
             return False

@@ -18,4 +18,8 @@ class ResponseMessage(Enum):
     PERSONCREATED = "Person created successfully"
     PERSONDELETED = "Person deleted successfully"
     PERSONUPDATED = "Person updated successfully"
+    FACEPROCESSINGFAILED = "Face processing failed"
+    INTERNALSERVERERROR = "Internal server error"
+
+    VECTORDB_COLLECTION_RETRIEVED = "Vector DB collection retrieved successfully"
   
