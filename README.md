@@ -1,98 +1,166 @@
-# Face Re-Identification Repository
+# Face Re-Identification System
 
-This repository implements the face re-identification component for the AI for FineTech Competition. It focuses on developing a system capable of matching images of staff faces to their corresponding identities, as well as identifying non-staff faces. The generated output file will later be merged with the tracking results in the Integration Repository.
+<!-- ![Face Recognition Visualization](notebooks/person_metrics_visualization.png) -->
 
-## Overview
+A scalable system for face recognition and re-identification across different projects and persons.
 
-- **Objective:**  
-  Develop a scalable face re-identification system that measures similarity between face images to accurately verify staff identities.
-  
-- **Evaluation Metric:**  
-  Accuracy Score (Calculated as: Correct Identifications / Total Identifications)
-  
-- **Output:**  
-  A CSV file (e.g., `outputs/face_reid_results{last_number}.csv`) containing face identification results formatted for integration.
+## Features
 
-## Directory Structure
+- 🖼️ Face embedding extraction and storage
+- 🔍 Similarity search across face embeddings
+- 📁 Project-based organization of persons and images
+- 🚀 FastAPI-based REST API
+- 🐳 Docker-ready deployment
+- 📊 Jupyter notebooks for analysis and visualization
+
+## Project Structure
 
 ```
-face_reid_repo/
-├── data/               # dataset, Scripts and notebooks for face image loading and preprocessing
-├── models/             # Model weights, training scripts, and evaluation code for face re-identification
-├── notebooks/          # Jupyter notebooks for experimentation and analysis
-├── outputs/            # Folder to store output files (e.g., outputs/face_reid_results.csv)
-├── utils/              # Utility functions (e.g., face alignment, similarity computation)
-├── README.md           
-└── requirements.txt   
+├── docker/                  - Docker configuration
+├── notebooks/               - Analysis notebooks
+├── src/                     - Main application source
+│   ├── assets/              - Storage for files and databases
+│   ├── controllers/         - Business logic handlers
+│   ├── models/              - Data models and schemas
+│   ├── routes/              - API endpoints
+│   ├── stores/              - Vector database integration
+│   └── utils/               - Utility functions
+├── inference.py             - Inference script
+├── download_results.py      - Results download utility
+└── requirements.txt         - Python dependencies
 ```
 
-## Setup
+## Technologies Used
 
-1. **Clone the Repository:**
+- **Backend**: FastAPI
+- **Vector Database**: Qdrant
+- **Face Recognition**: Deep learning models
+- **Storage**: Local filesystem (with MongoDB-like organization)
+- **DevOps**: Docker
+
+## Setup Instructions
+
+### Prerequisites
+
+- Python 3.8+
+- Docker (for containerized deployment)
+
+### Installation
+
+1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/face_reid_repo.git
-   cd face_reid_repo
+   git clone https://github.com/your-repo/face-reidentification.git
+   cd face-reidentification
    ```
 
-2. **Create a Virtual Environment and Install Dependencies:**
+2. Create and activate virtual environment:
 
    ```bash
    python -m venv venv
-   source venv/bin/activate    # On Windows use: venv\Scripts\activate
+   source venv/bin/activate  # Linux/Mac
+   venv\Scripts\activate     # Windows
+   ```
+
+3. Install dependencies:
+   ```bash
    pip install -r requirements.txt
    ```
 
-3. **Data Preparation:**
+### Configuration
 
-   - Ensure you have access to the required face image dataset.
-   - Update data paths in the scripts or notebooks as needed.
-   - Run any preprocessing scripts located in the `data/` folder to prepare the data.
+1. Create a `.env` file in the project root:
 
-## Usage
+```bash
+cp .env.example .env
+```
 
-1. **Training and Evaluation:**
+### Running with Docker
 
-   - Train your face re-identification model using the scripts in the `models/` directory.
-   - Evaluate the model's performance using the provided evaluation scripts.
+```bash
+docker-compose -f docker/docker-compose.yml up --build
+```
 
-   Example command:
-   ```bash
-   python models/train_face_reid.py --config config.yaml
-   ```
+### Running Locally
 
-2. **Generating Output:**
+Start the FastAPI server:
 
-   - After training and evaluation, generate the final output file for face re-identification.
-   - Save the output CSV file in the `outputs/` folder with the name `face_reid_results{last_number}.csv`.
+```bash
+uvicorn src.main:app --reload
+```
 
-   Example command:
-   ```bash
-   python models/generate_face_reid_output.py --output outputs/face_reid_results.csv
-   ```
+## API Documentation
 
-   **Output Format:**
-   - **Columns:** `ID`, `Frame`, `Objects`, `Objective`
-   - **Objects Column:** A dictionary containing keys such as `gt` (ground truth label) and `image` (path to the face image file).
+After starting the server, access the interactive API docs at:
 
-## Integration with the Integration Repository
+- Swagger UI: `http://localhost:8000/docs`
+- Redoc: `http://localhost:8000/redoc`
 
-The final submission for the competition will be assembled in the Integration Repository. Your output file (`outputs/face_reid_results{last_number}.csv`) should adhere to the following:
-- **Format:** Must match the sample provided in the Integration Repository’s README.
-- **Purpose:** It will be merged with the tracking output to create the final submission file.
+### Key Endpoints
 
-Refer to the [Integration Repository README](https://github.com/InceptionISA/Integration) for more details on the integration process.
+- `POST /upload/{project_id}/{person_id}` - Upload face images
+- `GET /search/{project_id}` - Search for similar faces
+- `GET /projects` - List all projects
+- `GET /persons/{project_id}` - List persons in a project
 
-## Experiment Tracking and Logging
+## Usage Examples
 
-- **Logging:** Record each experiment's hyperparameters, evaluation metrics, and observations in dedicated log files or within commit messages.
-- **Versioning:** Use Git branches and descriptive commit messages to track progress and maintain reproducibility.
-- **Documentation:** Utilize Jupyter notebooks or markdown files in the `notebooks/` directory to document experimental results and insights.
+### Uploading Images
 
-## Contributing
+```bash
+curl -X POST -F "file=@test.jpg" http://localhost:8000/upload/1/youssef
+```
 
-- Follow the repository guidelines and branch naming conventions.
-- Submit pull requests for new features, improvements, or bug fixes.
-- Ensure thorough testing before merging changes into the main branch.
+### Searching Similar Faces
 
+```bash
+curl -X GET "http://localhost:8000/search/1?limit=5"
+```
 
+## Development
+
+### Running Tests
+
+Tests can be run with:
+
+```bash
+pytest tests/
+```
+
+### Notebooks
+
+Jupyter notebooks for analysis are in the `notebooks/` directory. Start Jupyter with:
+
+```bash
+jupyter notebook
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Qdrant team for the vector database
+- FastAPI for the excellent web framework
+- All open-source face recognition model contributors
+
+```
+
+This README includes:
+1. Project overview and features
+2. Clear directory structure explanation
+3. Setup and installation instructions
+4. API documentation
+5. Usage examples
+6. Development information
+7. License and acknowledgments
+
+You may want to customize:
+- The license type if you're using something other than MIT
+- Specific model credits if you're using particular face recognition models
+- Additional deployment instructions if you have special requirements
+- Team information if this is a collaborative project
+
+Would you like me to add any specific sections or modify any part of this README?
+```

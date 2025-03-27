@@ -1,0 +1,20 @@
+services:
+  mongodb:
+    image: mongo:7-jammy
+    container_name: mongodb_face
+    ports:
+      - "27008:27017"
+    volumes:
+      - mongodata_face:/data/db #
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+    networks:
+      - backend_face
+    restart: always
+
+networks:
+  backend_face:
+
+volumes:
+  mongodata_face:
