@@ -22,4 +22,5 @@ class ResponseMessage(Enum):
     INTERNALSERVERERROR = "Internal server error"
 
     VECTORDB_COLLECTION_RETRIEVED = "Vector DB collection retrieved successfully"
+    VECTORDBCOLLECTIONNOTEXIST = "Vector DB collection does not exist"
   

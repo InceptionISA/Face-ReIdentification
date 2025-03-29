@@ -20,6 +20,10 @@ class PersonSchema(BaseModel):
     id: Optional[ObjectId] = Field(default=None, alias="_id")  
     project_id: ObjectId = Field(..., example="65d2a4f6c8e9f5a3b4d1e2f7")  
     person_id: str = Field(..., min_length=1, example="person_001")
+    # age and name optional
+    name: Optional[str] = Field(None, example="John Doe")
+    age: Optional[int] = Field(None, example=25)
+
     # qdrant_vector_id: str = Field(..., example="abcde-xyz")
     images: List[str] = Field(default=[], example=["image1.jpg", "image2.jpg"])
     has_embedding: bool = Field(default=False, example=False)

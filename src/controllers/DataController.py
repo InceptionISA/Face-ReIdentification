@@ -3,6 +3,7 @@ from fastapi import UploadFile
 from .ProjectController import ProjectController
 from models import ResponseMessage
 import re
+import shutil
 import os
 
 
@@ -41,3 +42,9 @@ class DataController(BaseController):
         """Clean file name to remove special characters except dots and spaces."""
         return re.sub(r'[^\w\s.-]', '', file_name.strip())  # Allows dots and hyphens
 
+
+    def delete_file(self, file_path: str):
+        if os.path.exists(file_path):
+            shutil.rmtree(file_path)
+
+        return True

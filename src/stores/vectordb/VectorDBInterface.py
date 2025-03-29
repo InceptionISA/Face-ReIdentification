@@ -43,3 +43,4 @@ class VectorDBInterface(ABC):
     def delete_record(self, collection_name: str, person_id: str) -> bool:
         """Delete a record from the database."""
         pass
+    

@@ -62,6 +62,10 @@ class ProjectModel(BaseDataModel):
 
         return projects , total_pages
     
+    async def delete_project(self, project_id:str):
+        return await self.collection.delete_one({"project_id": project_id})
+    
+    
 
          
 

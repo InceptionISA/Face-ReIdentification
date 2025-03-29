@@ -15,6 +15,7 @@ class FaceEmbeddingService(BaseController):
         super().__init__()  
         self.face_detector = face_detector
         self.feature_extractor = feature_extractor
+        self.embedding_size = feature_extractor.embedding_size  
 
 
     def get_embedding(self, image_path: str) -> Optional[List[float]]:
@@ -23,7 +24,6 @@ class FaceEmbeddingService(BaseController):
         return list(np.random.rand(512))
     
 
-        pass    
 
 
 
@@ -52,37 +52,59 @@ class FaceRecognitionController(BaseController):
     def create_collection_name(self , project_id):
         return f"collection_{project_id}".strip()
 
-    def get_vector_db_collection_info(self, project: ProjectSchema):
-        collection_name = self.create_collection_name(project_id=project.project_id)
+    def get_vector_db_collection_info(self, project_id: str):
+        collection_name = self.create_collection_name(project_id=project_id)
         collection_info = self.vector_db.get_collection_info(collection_name=collection_name)
 
         return json.loads(
             json.dumps(collection_info, default=lambda x: x.__dict__)
         )
 
-    async def process_person(self, project_id: str, person_id: str, image_paths: List[str]) -> bool:
+    async def process_person(self, project_id: str, person : PersonSchema) -> bool:
+
+
+        person_id = person.person_id
+        person_images = person.images
+
+
+        # Process using controller
+        person_dir = BaseController().get_image_path(str(project_id), person_id)
+        person_images = [os.path.join(person_dir, image) for image in person_images]
 
 
         # Create collection if not exists
-        collection_name = f"collection_{project_id}"
+        collection_name = self.create_collection_name(project_id)
         
         # Ensure collection exists
         if not self.vector_db.is_collection_existed(collection_name):
             self.vector_db.create_collection(
                 collection_name=collection_name, 
-                embedding_size=512  
+                embedding_size=self.embedding_service.embedding_size,
+                do_reset=False  
             )
 
 
         # Get average embedding
+        
 
-        embedding = self._get_average_embedding(image_paths)
+        embedding = self._get_average_embedding(person_images)
         
         if embedding is None:
             print(f"No valid embeddings found for person {person_id}")
             return False
         
         # Insert embedding into vector DB
+
+
+        if person.has_embedding:
+            print(f"Updating embedding for person {person_id}")
+            return self.vector_db.update_record(
+                collection_name=collection_name, 
+                person_id=person_id, 
+                vector=embedding
+            )
+        
+
         return self.vector_db.insert_record(
             collection_name=collection_name, 
             person_id=person_id, 
@@ -126,27 +148,12 @@ class FaceRecognitionController(BaseController):
             for result in results
         ]
 
-    async def batch_process(self, project_id: str, persons: List[Dict[str, List[str]]]) -> Dict[str, bool]:
+    async def batch_process(self, project_id: str, persons: List[PersonSchema]) -> Dict[str, bool]:
 
         results = {}
-        for person_data in persons:
-            for person_id, image_paths in person_data.items():
-                try:
-                    result = await self.process_person(project_id, person_id, image_paths)
-                    results[person_id] = result
-                except Exception as e:
-                    print(f"Error processing {person_id}: {e}")
-                    results[person_id] = False
+        for person in persons:
+            results[person.person_id] = await self.process_person(project_id=project_id, person=person)
         
         return results
 
-    async def delete_person(self, project_id: str, person_id: str) -> bool:
 
-
-        collection_name = f"collection_{project_id}"
-        self.vector_db.connect()
-        
-        return self.vector_db.delete_record(
-            collection_name=collection_name, 
-            person_id=person_id
-        )

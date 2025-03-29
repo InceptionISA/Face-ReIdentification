@@ -5,11 +5,12 @@ from typing import List, Optional
 import os
 
 class FacenetExtractor(FeatureExtractorInterface):
-    def __init__(self, model_path: Optional[str] = None, input_size: tuple = (160, 160), normalization: str = "per_image"):
+    def __init__(self, model_path: Optional[str] = None,embedding_size: int = 512, input_size: tuple = (160, 160), normalization: str = "per_image"):
         self.model_path = model_path
         self.input_size = input_size
         self.normalization = normalization
         self.model = None
+        self.embedding_size = 512
 
     def load_model(self):
         if not os.path.exists(self.model_path):

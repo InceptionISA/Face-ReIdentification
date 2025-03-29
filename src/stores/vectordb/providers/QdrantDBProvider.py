@@ -1,15 +1,16 @@
-from typing import List, Dict, Optional
+from typing import Optional , List , Dict
 import logging
 import uuid
 
 from qdrant_client import QdrantClient, models
-from qdrant_client.http import exceptions as qdrant_exceptions
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 from ..VectorDBInterface import VectorDBInterface
 from ..VectorDBEnums import DistanceMethodEnums
 from models.db_schemas import RetrievedFace
 
 class QdrantDBProvider(VectorDBInterface):
+    _client_instance: Optional[QdrantClient] = None  # Singleton
 
     def __init__(self, db_path: str, distance_method: str):
         self.db_path = db_path
@@ -17,10 +18,7 @@ class QdrantDBProvider(VectorDBInterface):
         self.distance_method = self._get_distance_method(distance_method)
         self.logger = logging.getLogger(self.__class__.__name__)
 
-
-
     def _get_distance_method(self, distance_method: str) -> models.Distance:
-
         distance_map = {
             DistanceMethodEnums.COSINE.value: models.Distance.COSINE,
             DistanceMethodEnums.DOT.value: models.Distance.DOT
@@ -28,17 +26,31 @@ class QdrantDBProvider(VectorDBInterface):
         return distance_map.get(distance_method, models.Distance.COSINE)
 
     def get_collection_info(self, collection_name: str):
-        return self.client.get_collection(collection_name=collection_name)
+        try:
 
+            if not self._validate_collection(collection_name):
+                self.logger.error(f"Collection {collection_name} does not exist")
+                return False
+            
+            return self.client.get_collection(collection_name=collection_name)
+        except UnexpectedResponse as e:
+            self.logger.error(f"Error retrieving collection info: {e}")
+            return True
 
-        return self.client.get_collection_info()
-    
     def connect(self) -> None:
         try:
-            self.client = QdrantClient(path=self.db_path)
-        except Exception as e:
-            self.logger.error(f"Failed to connect to Qdrant database: {e}")
-            raise
+            if QdrantDBProvider._client_instance is None:
+                QdrantDBProvider._client_instance = QdrantClient(path=self.db_path)
+                self.logger.info("Successfully connected to Qdrant.")
+
+            self.client = QdrantDBProvider._client_instance  
+        except RuntimeError as e:
+            if "already accessed by another instance" in str(e):
+                self.logger.warning("Database already in use. Consider using Qdrant Server Mode.")
+            else:
+                self.logger.error(f"Failed to connect to Qdrant database: {e}")
+                raise
+
 
     def disconnect(self) -> None:
         self.client = None
@@ -87,7 +99,7 @@ class QdrantDBProvider(VectorDBInterface):
                 return True
             return False
 
-        except qdrant_exceptions.QdrantException as e:
+        except UnexpectedResponse as e:
             self.logger.error(f"Error creating collection {collection_name}: {e}")
             return False
 
@@ -99,11 +111,6 @@ class QdrantDBProvider(VectorDBInterface):
     ) -> bool:
         """
         Insert a single record into the collection.
-
-        :param collection_name: Name of the collection
-        :param person_id: Unique identifier for the person
-        :param vector: Embedding vector
-        :return: True if insertion successful, False otherwise
         """
 
         if not self._validate_collection(collection_name):
@@ -125,8 +132,59 @@ class QdrantDBProvider(VectorDBInterface):
             )
             return True
 
-        except qdrant_exceptions.QdrantException as e:
+        except UnexpectedResponse as e:
+            print(e)
             self.logger.error(f"Error inserting record: {e}")
+            return False
+        
+    def update_record(
+        self,
+        collection_name: str,
+        person_id: str,
+        vector: List[float]
+    ) -> bool:
+        
+
+        if not self._validate_collection(collection_name):
+            self.logger.error(f"Collection {collection_name} does not exist")
+            return False
+
+        try:
+            # First, find the point ID(s) associated with this person_id
+            search_result = self.client.scroll(
+                collection_name=collection_name,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="person_id",
+                            match=models.MatchValue(value=str(person_id))
+                        )
+                    ]
+                ),
+                limit=1
+            )
+
+            if not search_result[0]:
+                self.logger.error(f"No record found with person_id: {person_id}")
+                return False
+
+            point_id = search_result[0][0].id
+
+            # Update the record
+            self.client.upsert(
+                collection_name=collection_name,
+                points=[
+                    models.PointStruct(
+                        id=point_id,
+                        vector=vector,
+                        payload={"person_id": str(person_id)}
+                    )
+                ]
+            )
+            return True
+
+        except UnexpectedResponse as e:
+            self.logger.error(f"Error updating record: {e}")
             return False
 
     def insert_many(
@@ -153,7 +211,7 @@ class QdrantDBProvider(VectorDBInterface):
                 ]
                 self.client.upsert(collection_name=collection_name, points=batch_points)
             return True
-        except qdrant_exceptions.QdrantException as e:
+        except UnexpectedResponse as e:
             self.logger.error(f"Error inserting batch: {e}")
             return False
 
@@ -190,22 +248,63 @@ class QdrantDBProvider(VectorDBInterface):
                 for result in results
             ] or None
 
-        except qdrant_exceptions.QdrantException as e:
+        except UnexpectedResponse as e:
             self.logger.error(f"Search error: {e}")
             return None
 
+
     def delete_record(self, collection_name: str, person_id: str) -> bool:
+        if not self._validate_collection(collection_name):
+            self.logger.error(f"Collection {collection_name} does not exist")
+            return False
+
+        try:
+
+            print(collection_name )
+            print('---------------------')
+            # Find the point_id associated with this person_id
+            search_result = self.client.scroll(
+                collection_name=collection_name,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="person_id",
+                            match=models.MatchValue(value=str(person_id))
+                        )
+                    ]
+                ),
+                limit=1
+            )
+
+            if not search_result[0]:  
+                self.logger.error(f"No record found with person_id: {person_id}")
+                return False
+
+            point_id = search_result[0][0].id  # Get the first match
+
+            # Delete using the point_id
+            self.client.delete(
+                collection_name=collection_name,
+                points_selector=models.PointIdsList(points=[point_id])  
+            )
+
+            return True
+
+        except UnexpectedResponse as e:
+            self.logger.error(f"Error deleting record: {e}")
+            return False
+
+    def delete_collection(self, collection_name: str) -> bool:
+
 
         if not self._validate_collection(collection_name):
             self.logger.error(f"Collection {collection_name} does not exist")
             return False
 
         try:
-            self.client.delete(
-                collection_name=collection_name,
-                points=[person_id]
-            )
+            self.client.delete_collection(collection_name=collection_name)
             return True
-        except qdrant_exceptions.QdrantException as e:
-            self.logger.error(f"Error deleting record: {e}")
+
+        except UnexpectedResponse as e:
+            self.logger.error(f"Error deleting collection: {e}")
             return False

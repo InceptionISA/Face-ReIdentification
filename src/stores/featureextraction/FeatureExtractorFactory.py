@@ -14,6 +14,7 @@ class FeatureExtractorFactory:
             )
             return FacenetExtractor(
                 model_path=model_path
+                ,embedding_size=self.config.EMBEDDING_SIZE
             )
 
         

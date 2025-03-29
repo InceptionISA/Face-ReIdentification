@@ -1,11 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional
+from fastapi import Form
 
+class PersonRequest(BaseModel):
+    name: str
+    age: int
 
-class ProcessRequest(BaseModel):
-    file_id: str = None
-    do_reset : Optional[int] = 0
-    
-
-
-
+    @classmethod
+    def as_form(cls, name: str = Form(...), age: int = Form(...)):
+        return cls(name=name, age=age)

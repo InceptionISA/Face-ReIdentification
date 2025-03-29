@@ -27,6 +27,15 @@ class BaseController:
    def get_model_path(self, model_path):
         return os.path.join(self.base_dir, model_path)
    
+   def get_project_path(self, project_id):
+    project_dir = os.path.join( self.file_dir , project_id)
+
+    if not os.path.exists(project_dir):
+        os.makedirs(project_dir)
+
+
+    return project_dir
+   
 
    def get_image_path(self, project_id, person_id,):
 
