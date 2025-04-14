@@ -9,6 +9,7 @@ from models.db_schemas import ProjectSchema
 
 
 
+
 class FaceEmbeddingService(BaseController):
     def __init__(self, face_detector, feature_extractor):
 
@@ -22,7 +23,7 @@ class FaceEmbeddingService(BaseController):
 
         # dummy implementation return 512 random floats
         return list(np.random.rand(512))
-    
+        
 
 
 

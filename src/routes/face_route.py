@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, status, Request 
+from fastapi import APIRouter, File, UploadFile, status, Request 
 from fastapi.responses import JSONResponse
 from helpers.config import get_settings, Settings
 from models import ResponseMessage 
@@ -7,8 +7,8 @@ from models.ProjectModel import ProjectModel
 from models.PersonModel import PersonModel
 from controllers.FaceRecognitionController import FaceRecognitionController, FaceEmbeddingService
 import logging
-from controllers.BaseController import BaseController
-import os 
+
+
 
 logger = logging.getLogger('uvicorn.error')
 
