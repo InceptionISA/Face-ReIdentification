@@ -6,24 +6,28 @@ import os
 import json
 from fastapi import Request, UploadFile, File, HTTPException
 from models.db_schemas import ProjectSchema 
-
-
+from deepface import DeepFace
 
 
 class FaceEmbeddingService(BaseController):
-    def __init__(self, face_detector, feature_extractor):
+    def __init__(self, face_detector, feature_extractor, config):
 
         super().__init__()  
-        self.face_detector = face_detector
-        self.feature_extractor = feature_extractor
-        self.embedding_size = feature_extractor.embedding_size  
+        self.face_detector = config.FACE_DETECTION_BACKEND
+        self.feature_extractor = config.FACE_EMBEDDING_BACKEND
+        self.embedding_size = config.EMBEDDING_SIZE 
 
 
     def get_embedding(self, image_path: str) -> Optional[List[float]]:
 
-        # dummy implementation return 512 random floats
-        return list(np.random.rand(512))
-        
+        embedding = DeepFace.represent(
+            img_path=image_path,
+            model_name=self.feature_extractor,
+            detector_backend=self.face_detector,
+            align=True,
+            enforce_detection=False
+        )
+        return embedding
 
 
 

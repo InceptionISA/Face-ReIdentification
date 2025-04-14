@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     FACE_EMBEDDING_BACKEND: str
     EMBEDDING_SIZE: int
     EMBEDDING_BATCH_SIZE: str
-    FACENET_MODEL_PATH: str
 
 
 
@@ -34,7 +33,6 @@ class Settings(BaseSettings):
 
 
     FACE_DETECTION_BACKEND: str
-    DLIB_DETECTOR_MODEL_PATH: str
 
     MTCNN_MIN_FACE_SIZE: int
 

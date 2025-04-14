@@ -7,3 +7,4 @@ aiofiles==23.2.1
 motor==3.6.0
 pydantic-mongo==2.3.0
 qdrant-client==1.10.1
+deepface==0.0.93
