@@ -1,98 +1,135 @@
-# Face Re-Identification Repository
+# How to Reproduce Face Re-Identification Results
 
-This repository implements the face re-identification component for the AI for FineTech Competition. It focuses on developing a system capable of matching images of staff faces to their corresponding identities, as well as identifying non-staff faces. The generated output file will later be merged with the tracking results in the Integration Repository.
+This guide will help you reproduce the face re-identification results using our implementation. The system uses Facenet512 for face recognition and can identify and match faces across different images.
 
-## Overview
+## Quick Start
 
-- **Objective:**  
-  Develop a scalable face re-identification system that measures similarity between face images to accurately verify staff identities.
-  
-- **Evaluation Metric:**  
-  Accuracy Score (Calculated as: Correct Identifications / Total Identifications)
-  
-- **Output:**  
-  A CSV file (e.g., `outputs/face_reid_results{last_number}.csv`) containing face identification results formatted for integration.
+1. **Install Dependencies**
 
-## Directory Structure
-
-```
-face_reid_repo/
-├── data/               # dataset, Scripts and notebooks for face image loading and preprocessing
-├── models/             # Model weights, training scripts, and evaluation code for face re-identification
-├── notebooks/          # Jupyter notebooks for experimentation and analysis
-├── outputs/            # Folder to store output files (e.g., outputs/face_reid_results.csv)
-├── utils/              # Utility functions (e.g., face alignment, similarity computation)
-├── README.md           
-└── requirements.txt   
+```bash
+pip install deepface numpy pandas matplotlib scikit-learn tqdm
 ```
 
-## Setup
+2. **Prepare Dataset Structure**
 
-1. **Clone the Repository:**
+```
+dataset/
+└── surveillance-for-retail-stores/
+    └── face_identification/
+        └── face_identification/
+            ├── test/
+            │   ├── image1.jpg
+            │   ├── image2.jpg
+            │   └── ...
+            └── train/
+                ├── person_0/
+                ├── person_1/
+                └── ...
+```
 
-   ```bash
-   git clone https://github.com/your-username/face_reid_repo.git
-   cd face_reid_repo
+3. **Run the Pipeline**
+
+```python
+from src.face_recognition import FaceRecognition
+
+# Initialize with best performing configuration
+config = {
+    'model_name': 'Facenet512',
+    'backend': 'mtcnn',  # Best performing face detector
+    'similarity_threshold': 0.65,
+}
+
+face_rec = FaceRecognition(config)
+face_rec.run_pipeline(
+    train_dir='dataset/surveillance-for-retail-stores/face_identification/face_identification/train',
+    test_dir='dataset/surveillance-for-retail-stores/face_identification/face_identification/test'
+)
+```
+
+## Detailed Steps
+
+### 1. Environment Setup
+
+```bash
+# Create and activate virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install deepface numpy pandas matplotlib scikit-learn tqdm
+```
+
+### 2. Dataset Preparation
+
+1. Create the following directory structure:
+
+   ```
+   dataset/
+   └── surveillance-for-retail-stores/
+       └── face_identification/
+           └── face_identification/
+               ├── test/          # Place test images here
+               └── train/         # Place training images here
    ```
 
-2. **Create a Virtual Environment and Install Dependencies:**
+2. Training images should be organized in subdirectories:
+   - Each person should have their own directory named `person_X` (e.g., `person_0`, `person_1`)
+   - Place all images of a person in their respective directory
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate    # On Windows use: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+### 3. Running the Pipeline
 
-3. **Data Preparation:**
+Create a Python script (e.g., `run_pipeline.py`) with the following content:
 
-   - Ensure you have access to the required face image dataset.
-   - Update data paths in the scripts or notebooks as needed.
-   - Run any preprocessing scripts located in the `data/` folder to prepare the data.
+```python
+from src.face_recognition import FaceRecognition
 
-## Usage
+# Best performing configuration
+config = {
+    'model_name': 'Facenet512',
+    'backend': 'mtcnn',           # Best performing face detector
+    'similarity_threshold': 0.65, # Optimized threshold
+    'use_alignment': True,        # Enable face alignment
+    'embeddings_dir': 'embeddings',
+    'metrics_dir': 'metrics',
+    'outputs_dir': 'outputs'
+}
 
-1. **Training and Evaluation:**
+# Initialize the face recognition system
+face_rec = FaceRecognition(config)
 
-   - Train your face re-identification model using the scripts in the `models/` directory.
-   - Evaluate the model's performance using the provided evaluation scripts.
+# Run the complete pipeline
+face_rec.run_pipeline(
+    train_dir='dataset/surveillance-for-retail-stores/face_identification/face_identification/train',
+    test_dir='dataset/surveillance-for-retail-stores/face_identification/face_identification/test'
+)
+```
 
-   Example command:
-   ```bash
-   python models/train_face_reid.py --config config.yaml
-   ```
+Run the script:
 
-2. **Generating Output:**
+```bash
+python run_pipeline.py
+```
 
-   - After training and evaluation, generate the final output file for face re-identification.
-   - Save the output CSV file in the `outputs/` folder with the name `face_reid_results{last_number}.csv`.
+### 4. Expected Output
 
-   Example command:
-   ```bash
-   python models/generate_face_reid_output.py --output outputs/face_reid_results.csv
-   ```
+The pipeline will generate:
 
-   **Output Format:**
-   - **Columns:** `ID`, `Frame`, `Objects`, `Objective`
-   - **Objects Column:** A dictionary containing keys such as `gt` (ground truth label) and `image` (path to the face image file).
+- Face embeddings in `embeddings/Facenet512/`
+- Submission file in the root directory
+- Statistics and visualizations in `metrics/`
 
-## Integration with the Integration Repository
+## Configuration Options
 
-The final submission for the competition will be assembled in the Integration Repository. Your output file (`outputs/face_reid_results{last_number}.csv`) should adhere to the following:
-- **Format:** Must match the sample provided in the Integration Repository’s README.
-- **Purpose:** It will be merged with the tracking output to create the final submission file.
+| Parameter            | Description                 | Recommended Value |
+| -------------------- | --------------------------- | ----------------- |
+| model_name           | Face recognition model      | 'Facenet512'      |
+| backend              | Face detection backend      | 'mtcnn'           |
+| similarity_threshold | Threshold for face matching | 0.65              |
+| use_alignment        | Enable face alignment       | True              |
 
-Refer to the [Integration Repository README](https://github.com/InceptionISA/Integration) for more details on the integration process.
+## Notes
 
-## Experiment Tracking and Logging
-
-- **Logging:** Record each experiment's hyperparameters, evaluation metrics, and observations in dedicated log files or within commit messages.
-- **Versioning:** Use Git branches and descriptive commit messages to track progress and maintain reproducibility.
-- **Documentation:** Utilize Jupyter notebooks or markdown files in the `notebooks/` directory to document experimental results and insights.
-
-## Contributing
-
-- Follow the repository guidelines and branch naming conventions.
-- Submit pull requests for new features, improvements, or bug fixes.
-- Ensure thorough testing before merging changes into the main branch.
-
-
+- The system uses Facenet512 as the best performing model
+- MTCNN is the recommended face detector for best results
+- The similarity threshold of 0.65 has been optimized for this dataset
+- Results are reproducible with the same random seed (42)
