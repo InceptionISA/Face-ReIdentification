@@ -363,7 +363,7 @@ if __name__ == "__main__":
     config = {
         'model_name': 'Facenet512',
         'backend': 'mtcnn',
-        'similarity_threshold': 0.7677,
+        'similarity_threshold': 0.65,
     }
     face_recognition = FaceRecognition(config)
     submission_path = face_recognition.run_pipeline()
