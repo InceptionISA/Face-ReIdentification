@@ -51,8 +51,8 @@ A scalable system for face recognition and re-identification across different pr
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-repo/face-reidentification.git
-   cd face-reidentification
+   git clone -b fast-api-working100%25 https://github.com/InceptionISA/Face-ReIdentification.git
+   cd Face-ReIdentification
    ```
 
 2. Create and activate virtual environment:
