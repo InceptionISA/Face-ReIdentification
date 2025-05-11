@@ -10,7 +10,7 @@ from deepface import DeepFace
 
 
 class FaceEmbeddingService(BaseController):
-    def __init__(self, face_detector, feature_extractor, config):
+    def __init__(self, config):
 
         super().__init__()  
         self.face_detector = config.FACE_DETECTION_BACKEND
@@ -28,9 +28,6 @@ class FaceEmbeddingService(BaseController):
             enforce_detection=False
         )
         return embedding
-
-
-
 
 class FaceRecognitionController(BaseController):
     def __init__(self, embedding_service, vector_db):

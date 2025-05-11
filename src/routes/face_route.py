@@ -1,11 +1,10 @@
 from fastapi import APIRouter, File, UploadFile, status, Request 
 from fastapi.responses import JSONResponse
-from helpers.config import get_settings, Settings
 from models import ResponseMessage 
 
 from models.ProjectModel import ProjectModel 
 from models.PersonModel import PersonModel
-from controllers.FaceRecognitionController import FaceRecognitionController, FaceEmbeddingService
+from controllers.FaceRecognitionController import FaceRecognitionController
 import logging
 
 
@@ -52,8 +51,7 @@ async def generate_person_embeddings(
 
 
         # controller
-        embedding_service = FaceEmbeddingService(request.app.face_detector, request.app.feature_extractor)
-        face_controller = FaceRecognitionController(embedding_service, request.app.vectordb_client)
+        face_controller = FaceRecognitionController(request.app.embedding_service, request.app.vectordb_client)
                 
 
                 
@@ -121,8 +119,7 @@ async def generate_project_embeddings(request: Request, project_id: str):
             )
         
         # controller
-        embedding_service = FaceEmbeddingService(request.app.face_detector, request.app.feature_extractor)
-        face_controller = FaceRecognitionController(embedding_service, request.app.vectordb_client)
+        face_controller = FaceRecognitionController(request.app.embedding_service, request.app.vectordb_client)
 
 
         # Process using controller
@@ -195,8 +192,7 @@ async def search_similar_faces(
         )
 
     # controller
-    embedding_service = FaceEmbeddingService(request.app.face_detector, request.app.feature_extractor)
-    face_controller = FaceRecognitionController(embedding_service, request.app.vectordb_client)
+    face_controller = FaceRecognitionController(request.app.embedding_service, request.app.vectordb_client)
 
     # search
     results = await face_controller.search_embedding(project_id, file, limit=limit)

@@ -5,24 +5,22 @@ from helpers.config import get_settings
 from stores.vectordb import VectorDBProviderFactory
 from stores.facedetection import FaceDetectorFactory
 from stores.featureextraction import FeatureExtractorFactory
-
+from controllers.FaceRecognitionController import FaceEmbeddingService  
 # Initialize FastAPI app
 app = FastAPI()
 
 
 async def initialize_resources():
     config = get_settings()
+    app.config = config
+
+    app.embedding_service = FaceEmbeddingService(config)
+
+
+
 
     app.mongo_client = AsyncIOMotorClient(config.MONGODB_URL)
     app.database = app.mongo_client[config.MONGODB_DATABASE]
-
-
-    face_detector_factory = FaceDetectorFactory(config=config)
-    face_feature_extractor_factory = FeatureExtractorFactory(config=config)
-
-    app.face_detector = face_detector_factory.create(provider=config.FACE_DETECTION_BACKEND)
-    app.feature_extractor = face_feature_extractor_factory.create(provider=config.FACE_EMBEDDING_BACKEND)
-
 
 
     vectordb_provider_factory = VectorDBProviderFactory(config=config)
