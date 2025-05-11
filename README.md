@@ -6,12 +6,13 @@ A scalable system for face recognition and re-identification across different pr
 
 ## Features
 
-- 🖼️ Face embedding extraction and storage
-- 🔍 Similarity search across face embeddings
+- 🖼️ Face embedding extraction and storage using DeepFace
+- 🔍 Similarity search across face embeddings using Qdrant
 - 📁 Project-based organization of persons and images
 - 🚀 FastAPI-based REST API
 - 🐳 Docker-ready deployment
 - 📊 Jupyter notebooks for analysis and visualization
+- 💾 MongoDB integration for metadata storage
 
 ## Project Structure
 
@@ -21,21 +22,21 @@ A scalable system for face recognition and re-identification across different pr
 ├── src/                     - Main application source
 │   ├── assets/              - Storage for files and databases
 │   ├── controllers/         - Business logic handlers
+│   ├── helpers/             - Helper functions and utilities
 │   ├── models/              - Data models and schemas
 │   ├── routes/              - API endpoints
 │   ├── stores/              - Vector database integration
-│   └── utils/               - Utility functions
-├── inference.py             - Inference script
-├── download_results.py      - Results download utility
+│   └── main.py             - Application entry point
 └── requirements.txt         - Python dependencies
 ```
 
 ## Technologies Used
 
-- **Backend**: FastAPI
-- **Vector Database**: Qdrant
-- **Face Recognition**: Deep learning models
-- **Storage**: Local filesystem (with MongoDB-like organization)
+- **Backend**: FastAPI 0.110.2
+- **Vector Database**: Qdrant 1.10.1
+- **Face Recognition**: DeepFace 0.0.93
+- **Document Database**: MongoDB (via Motor 3.6.0)
+- **Storage**: Local filesystem with MongoDB integration
 - **DevOps**: Docker
 
 ## Setup Instructions
@@ -43,7 +44,7 @@ A scalable system for face recognition and re-identification across different pr
 ### Prerequisites
 
 - Python 3.8+
-- Docker (for containerized deployment)
+- Docker and Docker Compose
 
 ### Installation
 
@@ -75,16 +76,50 @@ A scalable system for face recognition and re-identification across different pr
 cp .env.example .env
 ```
 
+Then edit the `.env` file to match your local setup. Make sure to set the following environment variables:
+
+#### MongoDB Configuration
+- `MONGO_INITDB_ROOT_USERNAME`
+- `MONGO_INITDB_ROOT_PASSWORD`
+- `MONGODB_URL`
+- `MONGODB_DATABASE`
+
+#### Application Configuration
+- `APP_NAME`
+- `APP_VERSION`
+- `FILE_ALLOWED_TYPES`
+- `FILE_MAX_SIZE`
+- `FILE_DEFAULT_CHUNK_SIZE`
+
+#### Vector Database Configuration
+- `VECTOR_DB_BACKEND`
+- `VECTOR_DB_PATH`
+- `VECTOR_DB_DISTANCE_METHOD`
+
+#### Face Recognition Configuration
+- `FACE_EMBEDDING_BACKEND`
+- `EMBEDDING_SIZE`
+- `EMBEDDING_BATCH_SIZE`
+- `FACE_DETECTION_BACKEND`
+- `MTCNN_MIN_FACE_SIZE`
+
 ### Running with Docker
 
 ```bash
 docker-compose -f docker/docker-compose.yml up --build
 ```
 
+This will start all required services including:
+- MongoDB database (accessible on port 27008)
+  - Data is persisted in a Docker volume named `mongodata_face`
+  - Uses MongoDB 7.0 with Ubuntu Jammy base image
+  - Configured with root username and password from environment variables
+
+The services are connected through a Docker network named `backend_face`.
+
 ### Running Locally
 
 Start the FastAPI server:
-
 ```bash
 uvicorn src.main:app --reload
 ```
@@ -96,36 +131,62 @@ After starting the server, access the interactive API docs at:
 - Swagger UI: `http://localhost:8000/docs`
 - Redoc: `http://localhost:8000/redoc`
 
-### Key Endpoints
+### API Endpoints
 
-- `POST /upload/{project_id}/{person_id}` - Upload face images
-- `GET /search/{project_id}` - Search for similar faces
-- `GET /projects` - List all projects
-- `GET /persons/{project_id}` - List persons in a project
+#### Face Recognition Endpoints (`/api/v1/faces`)
 
-## Usage Examples
+- `POST /{project_id}/persons/{person_id}/generate-embeddings` - Generate face embeddings for a specific person
+- `POST /{project_id}/generate-embeddings-batch` - Generate face embeddings for all persons in a project
+- `POST /{project_id}/search-similar` - Search for similar faces in a project
+- `GET /{project_id}/vector-db-info` - Get vector database information for a project
 
-### Uploading Images
+#### Data Management Endpoints (`/api/v1/data`)
+
+- `POST /{project_id}/persons/{person_id}/upload-image` - Upload an image for a person
+- `DELETE /{project_id}` - Delete an entire project and all its data
+- `DELETE /{project_id}/persons/{person_id}` - Delete a person and their data from a project
+
+### Usage Examples
+
+#### Uploading Images
 
 ```bash
-curl -X POST -F "file=@test.jpg" http://localhost:8000/upload/1/youssef
+curl -X POST -F "file=@test.jpg" -F "name=John Doe" -F "age=25" http://localhost:8000/api/v1/data/1/youssef/upload-image
 ```
 
-### Searching Similar Faces
+#### Generating Face Embeddings
 
 ```bash
-curl -X GET "http://localhost:8000/search/1?limit=5"
+# For a single person
+curl -X POST http://localhost:8000/api/v1/faces/1/persons/youssef/generate-embeddings
+
+# For all persons in a project
+curl -X POST http://localhost:8000/api/v1/faces/1/generate-embeddings-batch
+```
+
+#### Searching Similar Faces
+
+```bash
+curl -X POST -F "file=@test.jpg" "http://localhost:8000/api/v1/faces/1/search-similar?limit=5"
+```
+
+#### Getting Vector DB Info
+
+```bash
+curl -X GET http://localhost:8000/api/v1/faces/1/vector-db-info
+```
+
+#### Deleting Data
+
+```bash
+# Delete a person
+curl -X DELETE http://localhost:8000/api/v1/data/1/persons/youssef
+
+# Delete a project
+curl -X DELETE http://localhost:8000/api/v1/data/1
 ```
 
 ## Development
-
-### Running Tests
-
-Tests can be run with:
-
-```bash
-pytest tests/
-```
 
 ### Notebooks
 
@@ -139,28 +200,3 @@ jupyter notebook
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-- Qdrant team for the vector database
-- FastAPI for the excellent web framework
-- All open-source face recognition model contributors
-
-```
-
-This README includes:
-1. Project overview and features
-2. Clear directory structure explanation
-3. Setup and installation instructions
-4. API documentation
-5. Usage examples
-6. Development information
-7. License and acknowledgments
-
-You may want to customize:
-- The license type if you're using something other than MIT
-- Specific model credits if you're using particular face recognition models
-- Additional deployment instructions if you have special requirements
-- Team information if this is a collaborative project
-
-Would you like me to add any specific sections or modify any part of this README?
-```
